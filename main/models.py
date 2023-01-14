@@ -1,10 +1,11 @@
 from django.db import models
+from django.contrib.auth.hashers import make_password
 
-class User(models.Model):
+class Users(models.Model):
     user_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
-    email = models.EmailField(max_length=255, unique=True)
-    username = models.CharField(max_length=255, unique=True)
+    email = models.EmailField(max_length=255)
+    username = models.CharField(max_length=255)
     password = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -12,11 +13,15 @@ class User(models.Model):
     def __str__(self):
         return self.username
 
+    def save(self, *args, **kwargs):
+        self.password = make_password(self.password)
+        super(Users, self).save(*args, **kwargs)
+
 class Post(models.Model):
     post_id = models.AutoField(primary_key=True)
     title = models.CharField(max_length=255)
     body = models.TextField()
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    author = models.ForeignKey(Users, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True)
@@ -27,7 +32,7 @@ class Post(models.Model):
 
 class Comment(models.Model):
     body = models.TextField()
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    author = models.ForeignKey(Users, on_delete=models.CASCADE)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
