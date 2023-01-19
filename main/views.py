@@ -52,21 +52,40 @@ class GroupViewSet(viewsets.ModelViewSet):
 #         serializer.save(author=self.request.user)
 
 class CommentList(mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView):
-    queryset = Comment.objects.all()
+    # queryset = Comment.objects.all()
     serializer_class = CommentSerializer
+
+    def get_queryset(self):
+        pk = self.kwargs['pk']
+        return  Comment.objects.filter(post=pk)
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
-    def post(self, request, *args, **kwargs):
-        return self.create(request, *args, **kwargs)
+    # def post(self, request, *args, **kwargs):
+    #     return self.create(request, *args, **kwargs)
 
-class CommentDetail(mixins.RetrieveModelMixin, generics.GenericAPIView):
+# class CommentDetail(mixins.RetrieveModelMixin, generics.GenericAPIView):
+#     queryset = Comment.objects.all()
+#     serializer_class = CommentSerializer
+
+#     def get(self, request, *args, **kwargs):
+#         return self.retrieve(request, *args, **kwargs)
+
+class CommentDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
 
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
+class CommentCreate(generics.CreateAPIView):
+    serializer_class = CommentSerializer
+
+    def perform_create(self, serializer):
+        pk = self.kwargs.get('pk')
+        comment = Comment.objects.get(pk=pk)
+
+        serializer.save()
+
+
 
 @api_view(['POST'])
 def register_new_user(request):
