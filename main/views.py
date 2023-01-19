@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework import permissions
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from .serializers import UserRegistrationSerializer, UserLoginSerializer
+from .serializers import UserRegistrationSerializer, UserLoginSerializer, PostCreateSerializer, PostViewSerializer, CommentSerializer
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -13,6 +13,8 @@ from .models import Users, Post, Comment, Category, PostCategory, Tag
 from django.http import JsonResponse
 from rest_framework.response import Response
 from django.contrib.auth.hashers import make_password, check_password
+from rest_framework import mixins
+from rest_framework import generics
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -20,6 +22,14 @@ class UserViewSet(viewsets.ModelViewSet):
     """
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
+    #permission_classes = [permissions.IsAuthenticated]
+
+class UsersViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows users to be viewed or edited.
+    """
+    queryset = Users.objects.all()
+    serializer_class = UserLoginSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 
@@ -29,8 +39,34 @@ class GroupViewSet(viewsets.ModelViewSet):
     """
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    #permission_classes = [permissions.IsAuthenticated]
 
+
+# class PostViewSet(viewsets.ModelViewSet):
+#     authentication_classes = [TokenAuthentication]
+#     permission_classes = [permissions.IsAuthenticated]
+#     queryset = Post.objects.all()
+#     serializer_class = PostCreateSerializer
+
+#     def perform_create(self, serializer):
+#         serializer.save(author=self.request.user)
+
+class CommentList(mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+class CommentDetail(mixins.RetrieveModelMixin, generics.GenericAPIView):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)
 
 @api_view(['POST'])
 def register_new_user(request):
@@ -68,3 +104,54 @@ def login_new_user(request):
             return Response({"Status":"User Not Found"}, status=status.HTTP_400_BAD_REQUEST)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+# @authentication_classes([TokenAuthentication])
+# @permission_classes([IsAuthenticated])
+def create_post(request):
+    serializer = PostCreateSerializer(data=request.data)
+    if serializer.is_valid():
+
+        serializer.save()
+        return Response({"Status":"Post added"}, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def user_profile(request):
+    user = Users.objects.all()
+    serializer = UserRegistrationSerializer(user, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def view_post(request):
+    posts = Post.objects.all()
+    serializer = PostViewSerializer(posts, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def post_details(request, id):
+    try:
+        post = Post.objects.get(pk=id)
+    except Post.DoesNotExist:
+        return Response({"Status":"Post Not Found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = PostViewSerializer(post)
+        return Response(serializer.data)
+
+    if request.method == 'PUT':
+        serializer = PostCreateSerializer(post, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"Status":"Post updated"}, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'DELETE':
+        post.delete()
+        return Response({"Status":"Post deleted"}, status=status.HTTP_204_NO_CONTENT)
+
